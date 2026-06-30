@@ -13,7 +13,8 @@ import {
   Bell, 
   Plus, 
   Folder, 
-  Terminal
+  Terminal,
+  ShieldCheck
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useProjectStore } from '../store/useProjectStore';
@@ -69,6 +70,15 @@ export const DashboardLayout: React.FC = () => {
     { name: 'Markdown Notes', path: '/notes', icon: <FileText size={20} /> },
     { name: 'System Monitor', path: '/monitor', icon: <Activity size={20} /> },
   ];
+
+  const visibleNavItems = [...navItems];
+  if (user?.role === 'Administrator') {
+    visibleNavItems.push({
+      name: 'System Audit Logs',
+      path: '/admin/audit-logs',
+      icon: <ShieldCheck size={20} />
+    });
+  }
 
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -187,7 +197,7 @@ export const DashboardLayout: React.FC = () => {
 
         {/* Navigation items */}
         <nav className="flex-1 space-y-1.5 p-4">
-          {navItems.map((item) => {
+          {visibleNavItems.map((item) => {
             const isActive = location.pathname === item.path;
             return (
               <Link

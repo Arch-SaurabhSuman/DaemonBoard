@@ -4,6 +4,7 @@ export interface User {
   email: string;
   role?: string;
   avatarUrl?: string;
+  isVerified?: boolean;
 }
 
 export interface Project {

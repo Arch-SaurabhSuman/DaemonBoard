@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/saura/daemonboard/backend/internal/domain/models"
 	"github.com/saura/daemonboard/backend/internal/infrastructure/config"
 	"github.com/saura/daemonboard/backend/internal/infrastructure/database"
 	"github.com/saura/daemonboard/backend/internal/infrastructure/logger"
@@ -29,7 +30,19 @@ func main() {
 		logger.Log.Warnf("PostgreSQL database connection failed: %v. Server running in disconnected mode.", err)
 	} else {
 		logger.Log.Info("Successfully established PostgreSQL session connection.")
-		_ = db // Used later for dependency injection to repositories
+		
+		// Run auto-migrations for authentication models
+		logger.Log.Info("Running database schema auto-migrations...")
+		migrationErr := db.AutoMigrate(
+			&models.User{},
+			&models.RefreshToken{},
+			&models.AuditLog{},
+		)
+		if migrationErr != nil {
+			logger.Log.Errorf("Schema auto-migration execution failed: %v", migrationErr)
+		} else {
+			logger.Log.Info("Schema auto-migrations completed successfully.")
+		}
 	}
 
 	// 4. Connect to key-value storage engine
@@ -43,7 +56,7 @@ func main() {
 	}
 
 	// 5. Scaffolding API endpoints and middlewares
-	serverRouter := router.SetupRouter(cfg)
+	serverRouter := router.SetupRouter(cfg, db)
 
 	// 6. Starting HTTP listener
 	addr := fmt.Sprintf(":%s", cfg.Port)

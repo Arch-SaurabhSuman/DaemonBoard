@@ -10,7 +10,11 @@ import {
   Notes,
   Monitor,
   Login,
-  Register
+  Register,
+  ForgotPassword,
+  ResetPassword,
+  VerifyEmail,
+  AuditLogs
 } from '../pages';
 
 export const AppRoutes: React.FC = () => {
@@ -19,6 +23,9 @@ export const AppRoutes: React.FC = () => {
       {/* Public Pages */}
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/verify-email" element={<VerifyEmail />} />
 
       {/* Protected Main Application Layout Pages */}
       <Route
@@ -34,6 +41,7 @@ export const AppRoutes: React.FC = () => {
         <Route path="kanban" element={<Kanban />} />
         <Route path="notes" element={<Notes />} />
         <Route path="monitor" element={<Monitor />} />
+        <Route path="admin/audit-logs" element={<AuditLogs />} />
       </Route>
 
       {/* Catch-all fallback */}

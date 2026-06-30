@@ -12,6 +12,10 @@ interface AuthContextType {
   register: (username: string, email: string, password: string) => Promise<void>;
   logout: () => void;
   clearError: () => void;
+  forgotPassword: (email: string) => Promise<void>;
+  resetPassword: (token: string, newPassword: string) => Promise<void>;
+  verifyEmail: (token: string) => Promise<void>;
+  getAuditLogs: () => Promise<any[]>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -40,11 +44,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (token && savedUser) {
         try {
-          // Attempt to verify token with backend
-          // If we succeed, keep the session
-          // For now, since Phase 5 auth isn't fully implemented in the Go backend,
-          // if the backend request fails, we fall back to mock mode or keep the local session.
-          setUser(JSON.parse(savedUser));
+          // Attempt to verify token with backend using a me request
+          const response = await apiClient.get('/auth/me');
+          setUser(response.data);
+          localStorage.setItem('db_user', JSON.stringify(response.data));
+          setIsMockMode(false);
         } catch (err) {
           console.warn("Backend token validation failed. Retaining local session.", err);
           setUser(JSON.parse(savedUser));
@@ -69,18 +73,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       // 1. Attempt backend authentication
-      // We wrap it in a try-catch to automatically fall back to Mock mode if the Go server is offline.
       const response = await apiClient.post('/auth/login', { username, password })
         .catch((err) => {
-          // Server offline or endpoint not ready yet
           if (!err.response) {
             throw new Error('SERVER_OFFLINE');
           }
           throw err;
         });
 
-      const { token, user: backendUser } = response.data;
+      const { token, refreshToken, user: backendUser } = response.data;
       localStorage.setItem('db_token', token);
+      localStorage.setItem('db_refresh_token', refreshToken);
       localStorage.setItem('db_user', JSON.stringify(backendUser));
       localStorage.setItem('db_mock_mode', 'false');
       
@@ -102,6 +105,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         // Simulate successful login
         localStorage.setItem('db_token', 'mock-jwt-token-xyz-123');
+        localStorage.setItem('db_refresh_token', 'mock-refresh-token-xyz-123');
         localStorage.setItem('db_user', JSON.stringify(matchedUser));
         localStorage.setItem('db_mock_mode', 'true');
 
@@ -129,8 +133,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           throw err;
         });
 
-      const { token, user: backendUser } = response.data;
+      const { token, refreshToken, user: backendUser } = response.data;
       localStorage.setItem('db_token', token);
+      localStorage.setItem('db_refresh_token', refreshToken);
       localStorage.setItem('db_user', JSON.stringify(backendUser));
       localStorage.setItem('db_mock_mode', 'false');
 
@@ -149,6 +154,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
 
         localStorage.setItem('db_token', 'mock-jwt-token-xyz-123');
+        localStorage.setItem('db_refresh_token', 'mock-refresh-token-xyz-123');
         localStorage.setItem('db_user', JSON.stringify(mockUser));
         localStorage.setItem('db_mock_mode', 'true');
 
@@ -165,10 +171,92 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     localStorage.removeItem('db_token');
+    localStorage.removeItem('db_refresh_token');
     localStorage.removeItem('db_user');
     localStorage.removeItem('db_mock_mode');
     setUser(null);
     setIsMockMode(false);
+  };
+
+  const forgotPassword = async (email: string) => {
+    setError(null);
+    if (isMockMode) {
+      // Mock flow
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      console.log(`[MOCK] Forgot password email instructions sent to ${email}`);
+      return;
+    }
+
+    try {
+      await apiClient.post('/auth/forgot-password', { email });
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to send password reset request');
+      throw err;
+    }
+  };
+
+  const resetPassword = async (token: string, newPassword: string) => {
+    setError(null);
+    if (isMockMode) {
+      // Mock flow
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      console.log(`[MOCK] Reset password successfully using token ${token}`);
+      return;
+    }
+
+    try {
+      await apiClient.post('/auth/reset-password', { token, password: newPassword });
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Password reset failed');
+      throw err;
+    }
+  };
+
+  const verifyEmail = async (token: string) => {
+    setError(null);
+    if (isMockMode) {
+      // Mock flow
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      console.log(`[MOCK] Verified email successfully using token ${token}`);
+      if (user) {
+        setUser({ ...user, isVerified: true });
+        localStorage.setItem('db_user', JSON.stringify({ ...user, isVerified: true }));
+      }
+      return;
+    }
+
+    try {
+      await apiClient.get(`/auth/verify-email?token=${token}`);
+      // Refresh current user state
+      if (user) {
+        setUser({ ...user, isVerified: true });
+        localStorage.setItem('db_user', JSON.stringify({ ...user, isVerified: true }));
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Email verification failed');
+      throw err;
+    }
+  };
+
+  const getAuditLogs = async (): Promise<any[]> => {
+    if (isMockMode) {
+      // Return mock logs
+      const mockAuditLogs = [
+        { id: '1', userId: 'u-1', action: 'login_success', ipAddress: '127.0.0.1', userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', details: 'Successful login session initialized for user: admin', createdAt: new Date().toISOString() },
+        { id: '2', userId: 'u-2', action: 'token_refresh', ipAddress: '192.168.1.15', userAgent: 'Chrome/114.0.0.0', details: 'Rotated refresh token context session for user: alex', createdAt: new Date(Date.now() - 3600000).toISOString() },
+        { id: '3', userId: 'u-3', action: 'register', ipAddress: '10.0.0.4', userAgent: 'Firefox/115.0.0.0', details: 'User registered with email: sarah@daemonboard.io. Assigned role: Senior DevOps Engineer', createdAt: new Date(Date.now() - 7200000).toISOString() },
+        { id: '4', userId: 'u-1', action: 'email_verified', ipAddress: '127.0.0.1', userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', details: 'User: admin successfully verified email address.', createdAt: new Date(Date.now() - 14400000).toISOString() }
+      ];
+      return mockAuditLogs;
+    }
+
+    try {
+      const response = await apiClient.get('/admin/audit-logs');
+      return response.data;
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to fetch audit logs');
+      throw err;
+    }
   };
 
   const clearError = () => setError(null);
@@ -187,6 +275,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         register,
         logout,
         clearError,
+        forgotPassword,
+        resetPassword,
+        verifyEmail,
+        getAuditLogs,
       }}
     >
       {children}
