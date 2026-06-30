@@ -5,6 +5,7 @@ Welcome to **DaemonBoard**, a production-grade 3-tier DevOps Learning Portal. Th
 For details on the project direction, architectures, and models, please refer to:
 - [Phase 0: Vision & Planning Specification](docs/vision.md)
 - [Phase 1: Software Architecture Specification](docs/architecture.md)
+- [Phase 2: Database Design Specification](docs/database.md)
 
 ---
 
@@ -14,7 +15,7 @@ We are executing the development of DaemonBoard through a structured 18-phase ro
 
 - [x] **Phase 0**: Vision & Planning (Completed)
 - [x] **Phase 1**: Software Architecture (Completed)
-- [ ] **Phase 2**: Database Design
+- [x] **Phase 2**: Database Design (Completed)
 - [ ] **Phase 3**: Backend Foundation
 - [ ] **Phase 4**: Frontend Foundation
 - [ ] **Phase 5**: Authentication
