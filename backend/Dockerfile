@@ -1,28 +1,26 @@
-# Build stage
-FROM golang:1.22-alpine AS builder
+FROM dhi.io/golang:1-alpine AS builder
 
 WORKDIR /app
 
-# Pre-copy modules to utilize Docker layer caching
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Copy source code and build statically
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -o main ./cmd/api/main.go
+RUN CGO_ENABLED=0 go build -o devboard-backend .
 
-# Run stage
-FROM alpine:latest
-
-RUN apk --no-cache add ca-certificates
+FROM dhi.io/golang:1-alpine
 
 WORKDIR /app
 
-# Copy binary from the builder layer
-COPY --from=builder /app/main .
-# Default backup env file
-COPY --from=builder /app/.env.example ./.env
+COPY --from=builder /app/devboard-backend ./devboard-backend
 
-EXPOSE 5000
+# Ensure binary is executable
+RUN chmod +x ./devboard-backend
 
-CMD ["./main"]
+# DHI image runs as nonroot by default
+USER nonroot
+
+EXPOSE 8080
+
+# Use exec form for proper signal handling
+ENTRYPOINT ["./devboard-backend"]
