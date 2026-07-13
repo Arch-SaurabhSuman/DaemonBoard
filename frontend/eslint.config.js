@@ -1,28 +1,34 @@
-import js from '@eslint/js'
-import globals from 'globals'
-import reactHooks from 'eslint-plugin-react-hooks'
-import reactRefresh from 'eslint-plugin-react-refresh'
-import tseslint from 'typescript-eslint'
+// Minimal ESLint flat config for the React + Vite frontend. `npm run lint`.
+import js from '@eslint/js';
+import globals from 'globals';
+import react from 'eslint-plugin-react';
+import reactHooks from 'eslint-plugin-react-hooks';
 
-export default tseslint.config(
-  { ignores: ['dist'] },
+export default [
+  { ignores: ['dist/', 'node_modules/'] },
+
   {
-    extends: [js.configs.recommended, ...tseslint.configs.recommended],
-    files: ['**/*.{ts,tsx}'],
+    files: ['src/**/*.{js,jsx}'],
+    ...js.configs.recommended,
     languageOptions: {
-      ecmaVersion: 2020,
+      ecmaVersion: 'latest',
+      sourceType: 'module',
       globals: globals.browser,
+      parserOptions: { ecmaFeatures: { jsx: true } },
     },
-    plugins: {
-      'react-hooks': reactHooks,
-      'react-refresh': reactRefresh,
-    },
+    plugins: { react, 'react-hooks': reactHooks },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      'react-refresh/only-export-components': [
-        'warn',
-        { allowConstantExport: true },
-      ],
+      'react/jsx-uses-vars': 'error',   // count <Icon /> as a use
+      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]', argsIgnorePattern: '^_' }],
     },
   },
-)
+
+  // Test files get vitest globals.
+  {
+    files: ['src/**/*.test.{js,jsx}', 'src/test/**/*.{js,jsx}'],
+    languageOptions: {
+      globals: { ...globals.node, describe: true, it: true, expect: true, vi: true, beforeEach: true, afterEach: true },
+    },
+  },
+];
